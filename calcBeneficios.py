@@ -6,15 +6,17 @@ from datetime import datetime
 
 # Função para simular a inflação mensal (exemplo: 0,5% ao mês)
 def calcular_correcao_monetaria(valor, competencia, taxa_mensal=0.005):
-    hoje = datetime.today()
+    """Calcula a correção monetária com base em uma taxa mensal."""
+    data_atual = datetime.today()
     competencia_data = datetime.strptime(competencia, "%m/%Y")
-    meses = (hoje.year - competencia_data.year) * 12 + (hoje.month - competencia_data.month)
+    meses = (data_atual.year - competencia_data.year) * 12 + (data_atual.month - competencia_data.month)
     correcao = valor * ((1 + taxa_mensal) ** meses)
     percentual = (correcao / valor - 1) * 100
     return round(correcao, 2), round(percentual, 2)
 
 # Função para extrair texto do PDF
 def extrair_dados_pdf(arquivo_pdf):
+    """Extrai texto de um arquivo PDF."""
     with pdfplumber.open(arquivo_pdf) as pdf:
         texto = ""
         for pagina in pdf.pages:
@@ -23,6 +25,7 @@ def extrair_dados_pdf(arquivo_pdf):
 
 # Função para organizar os dados em tabela
 def organizar_dados_em_tabela(texto):
+    """Transforma o texto extraído em um DataFrame organizado."""
     linhas = texto.split("\n")
     dados = []
     for linha in linhas:
@@ -35,6 +38,7 @@ def organizar_dados_em_tabela(texto):
 
 # Funções para calcular impostos
 def calcular_inss(remuneracao):
+    """Calcula o desconto do INSS com base na remuneração."""
     tetos = [1320.00, 2571.29, 3856.94, 7507.49]
     aliquotas = [0.075, 0.09, 0.12, 0.14]
     faixas = [0] + tetos
@@ -48,6 +52,7 @@ def calcular_inss(remuneracao):
     return round(inss, 2)
 
 def calcular_irpf(remuneracao):
+    """Calcula o desconto do IRPF com base na remuneração."""
     tetos = [2112.00, 2826.65, 3751.05, 4664.68]
     aliquotas = [0, 0.075, 0.15, 0.225, 0.275]
     deducoes = [0, 158.40, 370.40, 651.73, 884.96]
@@ -60,6 +65,7 @@ def calcular_irpf(remuneracao):
 
 # Função principal para processar o PDF
 def processar_pdf(arquivo_pdf, inicio, termino):
+    """Processa o arquivo PDF e calcula os benefícios retroativos."""
     texto_pdf = extrair_dados_pdf(arquivo_pdf)
     tabela = organizar_dados_em_tabela(texto_pdf)
 
@@ -78,10 +84,15 @@ def processar_pdf(arquivo_pdf, inicio, termino):
     tabela["IRPF Reajustado"] = tabela["Salário Reajustado"].apply(calcular_irpf)
     tabela["Diferença INSS"] = tabela["INSS Reajustado"] - tabela["INSS"]
     tabela["Diferença IRPF"] = tabela["IRPF Reajustado"] - tabela["IRPF"]
-    tabela["Periculosidade Corrigida"] = tabela["Adicional Periculosidade"] - tabela["Diferença INSS"] - tabela["Diferença IRPF"]
+    
+    tabela["Periculosidade Corrigida"] = (
+        tabela["Adicional Periculosidade"] - tabela["Diferença INSS"] - tabela["Diferença IRPF"]
+    )
 
     tabela["Valor Corrigido"], tabela["Percentual Correção"] = zip(*tabela.apply(
-        lambda row: calcular_correcao_monetaria(row["Periculosidade Corrigida"], row["Competência"].strftime("%m/%Y")),
+        lambda row: calcular_correcao_monetaria(
+            row["Periculosidade Corrigida"],
+            row["Competência"].strftime("%m/%Y")),
         axis=1
     ))
 
@@ -92,6 +103,7 @@ def processar_pdf(arquivo_pdf, inicio, termino):
 
 # Função para selecionar o arquivo
 def selecionar_arquivo():
+    """Abre uma janela para seleção de arquivo e processa o PDF."""
     Tk().withdraw()
     arquivo_pdf = filedialog.askopenfilename(
         title="Selecione o arquivo CNIS em PDF",
